@@ -1,11 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { 
   getFirestore,
-  collection,
   doc,
-  setDoc,
   getDoc,
-  onSnapshot
+  setDoc,
+  onSnapshot,
+  collection  // Adicionei collection que pode ser útil
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -17,8 +17,8 @@ const firebaseConfig = {
   appId: "1:799603590846:web:04e0222c93387b8e3180ef"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-export { db, doc, setDoc, getDoc, onSnapshot };
+// Exporte todas as funções que você vai usar
+export { db, collection, doc, getDoc, setDoc, onSnapshot };
