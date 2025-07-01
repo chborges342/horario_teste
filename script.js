@@ -639,58 +639,63 @@ function updatePrintSelects() {
 
 // Data persistence
 // Substitua no seu arquivo principal
+// Remove qualquer uso de localStorage
+
+// Função para salvar dados
 async function saveData() {
   try {
-    const docRef = doc(db, "gestaoHorarios", "dadosApp");
-    await setDoc(docRef, appData);
+    await setDoc(doc(db, "gestaoHorarios", "dadosApp"), appData);
     console.log("Dados salvos no Firebase!");
   } catch (error) {
-    console.error("Erro ao salvar no Firebase:", error);
-    showAlert('Erro ao salvar dados', 'error');
+    console.error("Erro ao salvar:", error);
+    showAlert('Erro ao salvar dados: ' + error.message, 'error');
   }
 }
 
+// Função para carregar dados
 async function loadData() {
   try {
-    const docRef = doc(db, "gestaoHorarios", "dadosApp");
-    const docSnap = await getDoc(docRef);
+    const docSnap = await getDoc(doc(db, "gestaoHorarios", "dadosApp"));
     
     if (docSnap.exists()) {
       appData = docSnap.data();
-      
-      // Renderiza todos os dados
-      renderProfessoresList();
-      renderDisciplinasList();
-      renderTurmasList();
-      renderSalasList();
-      updateSelectOptions();
-      updateDashboardCounts();
-      
-      console.log("Dados carregados do Firebase!");
+      showAlert('Dados carregados!', 'success');
     } else {
-      console.log("Nenhum dado encontrado no Firebase. Iniciando com dados vazios.");
+      // Cria a estrutura inicial se não existir
+      await saveData();
+      showAlert('Banco de dados inicializado!', 'info');
     }
+    
+    // Atualiza a interface
+    renderProfessoresList();
+    renderDisciplinasList();
+    renderTurmasList();
+    renderSalasList();
+    updateSelectOptions();
+    updateDashboardCounts();
+    
   } catch (error) {
-    console.error("Erro ao carregar do Firebase:", error);
-    showAlert('Erro ao carregar dados', 'error');
+    console.error("Erro ao carregar:", error);
+    showAlert('Erro ao carregar: ' + error.message, 'error');
   }
 }
 
-// Adicione esta função para atualizações em tempo real
+// Atualização em tempo real
 function setupRealtimeUpdates() {
-  const docRef = doc(db, "gestaoHorarios", "dadosApp");
-  
-  onSnapshot(docRef, (doc) => {
+  onSnapshot(doc(db, "gestaoHorarios", "dadosApp"), (doc) => {
     if (doc.exists()) {
       appData = doc.data();
-      // Atualize a UI conforme necessário
-      renderProfessoresList();
-      renderDisciplinasList();
-      renderTurmasList();
-      renderSalasList();
-      updateDashboardCounts();
+      updateUI();
     }
   });
+}
+
+function updateUI() {
+  renderProfessoresList();
+  renderDisciplinasList();
+  renderTurmasList();
+  renderSalasList();
+  updateDashboardCounts();
 }
 
 // Initialize app
@@ -703,12 +708,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSalas();
   initHorarios();
   initImpressao();
-  
-  // Carrega dados e configura atualizações em tempo real
+
   await loadData();
   setupRealtimeUpdates();
-  
-  console.log('Sistema de Gestão de Horários inicializado com sucesso!');
 });
 
 
