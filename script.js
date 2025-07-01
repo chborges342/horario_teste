@@ -136,29 +136,42 @@ function clearForm(formId) {
 
 // Navegação
 function initNavigation() {
+  // Adicione este timeout para garantir que o DOM está totalmente carregado
+  setTimeout(() => {
     const navButtons = document.querySelectorAll('.nav-btn');
     const sections = document.querySelectorAll('.section');
     
-    navButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const targetSection = button.getAttribute('data-section');
-            
-            // Update active nav button
-            navButtons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            
-            // Update active section
-            sections.forEach(section => section.classList.remove('active'));
-            document.getElementById(targetSection).classList.add('active');
-            
-            // Update dashboard counts when returning to dashboard
-            if (targetSection === 'dashboard') {
-                updateDashboardCounts();
-            }
-        });
-    });
-}
+    if (navButtons.length === 0 || sections.length === 0) {
+      console.error('Elementos de navegação não encontrados!');
+      return;
+    }
 
+    navButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetSection = button.getAttribute('data-section');
+        
+        if (!targetSection) {
+          console.error('Atributo data-section não encontrado');
+          return;
+        }
+
+        // Remove classes ativas
+        navButtons.forEach(btn => btn.classList.remove('active'));
+        sections.forEach(section => section.classList.remove('active'));
+        
+        // Adiciona classes ativas
+        button.classList.add('active');
+        document.getElementById(targetSection)?.classList.add('active');
+        
+        // Atualiza dashboard se necessário
+        if (targetSection === 'dashboard') {
+          updateDashboardCounts();
+        }
+      });
+    });
+  }, 100); // Pequeno delay para garantir carregamento
+}
 // Tabs nos cadastros
 function initTabs() {
     const tabButtons = document.querySelectorAll('.tab-btn');
