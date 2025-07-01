@@ -1,8 +1,6 @@
 // Sistema de Gestão de Horários - Ciências Econômicas UESC
 // Arquivo principal JavaScript
 
-import { db, doc, getDoc, setDoc, onSnapshot } from './firebase.js';
-
 // Estrutura de dados global
 let appData = {
     professores: [],
@@ -136,42 +134,29 @@ function clearForm(formId) {
 
 // Navegação
 function initNavigation() {
-  // Adicione este timeout para garantir que o DOM está totalmente carregado
-  setTimeout(() => {
     const navButtons = document.querySelectorAll('.nav-btn');
     const sections = document.querySelectorAll('.section');
     
-    if (navButtons.length === 0 || sections.length === 0) {
-      console.error('Elementos de navegação não encontrados!');
-      return;
-    }
-
     navButtons.forEach(button => {
-      button.addEventListener('click', (e) => {
-        e.preventDefault();
-        const targetSection = button.getAttribute('data-section');
-        
-        if (!targetSection) {
-          console.error('Atributo data-section não encontrado');
-          return;
-        }
-
-        // Remove classes ativas
-        navButtons.forEach(btn => btn.classList.remove('active'));
-        sections.forEach(section => section.classList.remove('active'));
-        
-        // Adiciona classes ativas
-        button.classList.add('active');
-        document.getElementById(targetSection)?.classList.add('active');
-        
-        // Atualiza dashboard se necessário
-        if (targetSection === 'dashboard') {
-          updateDashboardCounts();
-        }
-      });
+        button.addEventListener('click', () => {
+            const targetSection = button.getAttribute('data-section');
+            
+            // Update active nav button
+            navButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Update active section
+            sections.forEach(section => section.classList.remove('active'));
+            document.getElementById(targetSection).classList.add('active');
+            
+            // Update dashboard counts when returning to dashboard
+            if (targetSection === 'dashboard') {
+                updateDashboardCounts();
+            }
+        });
     });
-  }, 100); // Pequeno delay para garantir carregamento
 }
+
 // Tabs nos cadastros
 function initTabs() {
     const tabButtons = document.querySelectorAll('.tab-btn');
@@ -285,7 +270,6 @@ function deleteProfessor(id) {
 }
 
 // Disciplinas
-
 function initDisciplinas() {
     const form = document.getElementById('disciplina-form');
     const turnoSelect = document.getElementById('disciplina-turno');
@@ -321,9 +305,9 @@ function initDisciplinas() {
             return;
         }
         
-        // MODIFICAÇÃO AQUI - Verifica se o código já existe NO MESMO TURNO
-        if (appData.disciplinas.some(d => d.codigo === codigo && d.turno === turno)) {
-            showAlert('Código da disciplina já existe neste turno', 'error');
+        // Check if codigo already exists
+        if (appData.disciplinas.some(d => d.codigo === codigo)) {
+            showAlert('Código da disciplina já existe', 'error');
             return;
         }
         
@@ -653,85 +637,54 @@ function updatePrintSelects() {
 }
 
 // Data persistence
-// Substitua no seu arquivo principal
-// Remove qualquer uso de localStorage
-
-// Função para salvar dados
-async function saveData() {
-  try {
-    await setDoc(doc(db, "gestaoHorarios", "dadosApp"), appData);
-    console.log("Dados salvos no Firebase!");
-  } catch (error) {
-    console.error("Erro ao salvar:", error);
-    showAlert('Erro ao salvar dados: ' + error.message, 'error');
-  }
-}
-
-// Função para carregar dados
-async function loadData() {
-  try {
-    const docRef = doc(db, "gestaoHorarios", "dadosApp");
-    const docSnap = await getDoc(docRef);  // Agora getDoc está definido
-    
-    if (docSnap.exists()) {
-      appData = docSnap.data();
-      showAlert('Dados carregados com sucesso!', 'success');
-    } else {
-      await setDoc(docRef, {
-        professores: [],
-        disciplinas: [],
-        turmas: [],
-        salas: [],
-        horarios: []
-      });
-      showAlert('Banco de dados inicializado!', 'info');
+function saveData() {
+    try {
+        localStorage.setItem('gestao-horarios-data', JSON.stringify(appData));
+    } catch (error) {
+        console.error('Erro ao salvar dados:', error);
+        showAlert('Erro ao salvar dados', 'error');
     }
-    
-    // Atualiza a interface
-    renderProfessoresList();
-    renderDisciplinasList();
-    renderTurmasList();
-    renderSalasList();
-    updateSelectOptions();
-    updateDashboardCounts();
-    
-  } catch (error) {
-    console.error("Erro detalhado:", error);
-    showAlert(`Erro ao carregar: ${error.message}`, 'error');
-  }
 }
 
-// Atualização em tempo real
-function setupRealtimeUpdates() {
-  onSnapshot(doc(db, "gestaoHorarios", "dadosApp"), (doc) => {
-    if (doc.exists()) {
-      appData = doc.data();
-      updateUI();
+function loadData() {
+    try {
+        const savedData = localStorage.getItem('gestao-horarios-data');
+        if (savedData) {
+            appData = JSON.parse(savedData);
+            
+            // Render all lists
+            renderProfessoresList();
+            renderDisciplinasList();
+            renderTurmasList();
+            renderSalasList();
+            
+            // Update selects
+            updateSelectOptions();
+            
+            // Update dashboard
+            updateDashboardCounts();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        showAlert('Erro ao carregar dados salvos', 'error');
     }
-  });
-}
-
-function updateUI() {
-  renderProfessoresList();
-  renderDisciplinasList();
-  renderTurmasList();
-  renderSalasList();
-  updateDashboardCounts();
 }
 
 // Initialize app
-document.addEventListener('DOMContentLoaded', async () => {
-  initNavigation();
-  initTabs();
-  initProfessores();
-  initDisciplinas();
-  initTurmas();
-  initSalas();
-  initHorarios();
-  initImpressao();
-
-  await loadData();
-  setupRealtimeUpdates();
+document.addEventListener('DOMContentLoaded', () => {
+    initNavigation();
+    initTabs();
+    initProfessores();
+    initDisciplinas();
+    initTurmas();
+    initSalas();
+    initHorarios();
+    initImpressao();
+    
+    // Load saved data
+    loadData();
+    
+    console.log('Sistema de Gestão de Horários inicializado com sucesso!');
 });
 
 
