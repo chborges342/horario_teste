@@ -29,23 +29,33 @@ const HORARIOS_CONFIG = {
         blocos: {
             'segunda': [
                 { id: 1, inicio: '18:40', fim: '19:30' },
-                { id: 2, inicio: '19:30', fim: '20:20' }
+                { id: 2, inicio: '19:30', fim: '20:20' },
+                { id: 3, inicio: '20:20', fim: '21:10' },
+                { id: 4, inicio: '21:10', fim: '22:00' }
             ],
             'terca': [
                 { id: 1, inicio: '18:40', fim: '19:30' },
-                { id: 2, inicio: '19:30', fim: '20:20' }
+                { id: 2, inicio: '19:30', fim: '20:20' },
+                { id: 3, inicio: '20:20', fim: '21:10' },
+                { id: 4, inicio: '21:10', fim: '22:00' }
             ],
             'quarta': [
                 { id: 1, inicio: '18:40', fim: '19:30' },
-                { id: 2, inicio: '19:30', fim: '20:20' }
+                { id: 2, inicio: '19:30', fim: '20:20' },
+                { id: 3, inicio: '20:20', fim: '21:10' },
+                { id: 4, inicio: '21:10', fim: '22:00' }
             ],
             'quinta': [
                 { id: 1, inicio: '18:40', fim: '19:30' },
-                { id: 2, inicio: '19:30', fim: '20:20' }
+                { id: 2, inicio: '19:30', fim: '20:20' },
+                { id: 3, inicio: '20:20', fim: '21:10' },
+                { id: 4, inicio: '21:10', fim: '22:00' }
             ],
             'sexta': [
                 { id: 1, inicio: '18:40', fim: '19:30' },
-                { id: 2, inicio: '19:30', fim: '20:20' }
+                { id: 2, inicio: '19:30', fim: '20:20' },
+                { id: 3, inicio: '20:20', fim: '21:10' },
+                { id: 4, inicio: '21:10', fim: '22:00' }
             ],
             'sabado': [
                 { id: 1, inicio: '07:30', fim: '08:20' },
