@@ -657,7 +657,6 @@ async function loadData() {
     
     if (docSnap.exists()) {
       appData = docSnap.data();
-      showAlert('Dados carregados com sucesso!', 'success');
       
       // Renderiza todos os dados
       renderProfessoresList();
@@ -666,21 +665,16 @@ async function loadData() {
       renderSalasList();
       updateSelectOptions();
       updateDashboardCounts();
+      
+      console.log("Dados carregados do Firebase!");
     } else {
-      // Cria o documento com estrutura inicial se não existir
-      await setDoc(docRef, {
-        professores: [],
-        disciplinas: [],
-        turmas: [],
-        salas: [],
-        horarios: []
-      });
-      showAlert('Banco de dados inicializado!', 'info');
+      console.log("Nenhum dado encontrado no Firebase. Iniciando com dados vazios.");
     }
   } catch (error) {
-    console.error("Erro detalhado:", error);
-    showAlert(`Erro ao carregar: ${error.message}`, 'error');
+    console.error("Erro ao carregar do Firebase:", error);
+    showAlert('Erro ao carregar dados', 'error');
   }
+}
 
 // Adicione esta função para atualizações em tempo real
 function setupRealtimeUpdates() {
