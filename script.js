@@ -657,14 +657,20 @@ async function saveData() {
 // Função para carregar dados
 async function loadData() {
   try {
-    const docSnap = await getDoc(doc(db, "gestaoHorarios", "dadosApp"));
+    const docRef = doc(db, "gestaoHorarios", "dadosApp");
+    const docSnap = await getDoc(docRef);  // Agora getDoc está definido
     
     if (docSnap.exists()) {
       appData = docSnap.data();
-      showAlert('Dados carregados!', 'success');
+      showAlert('Dados carregados com sucesso!', 'success');
     } else {
-      // Cria a estrutura inicial se não existir
-      await saveData();
+      await setDoc(docRef, {
+        professores: [],
+        disciplinas: [],
+        turmas: [],
+        salas: [],
+        horarios: []
+      });
       showAlert('Banco de dados inicializado!', 'info');
     }
     
@@ -677,8 +683,8 @@ async function loadData() {
     updateDashboardCounts();
     
   } catch (error) {
-    console.error("Erro ao carregar:", error);
-    showAlert('Erro ao carregar: ' + error.message, 'error');
+    console.error("Erro detalhado:", error);
+    showAlert(`Erro ao carregar: ${error.message}`, 'error');
   }
 }
 
