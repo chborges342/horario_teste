@@ -1,6 +1,8 @@
 // Sistema de Gestão de Horários - Ciências Econômicas UESC
 // Arquivo principal JavaScript
 
+import { db, doc, getDoc, setDoc, onSnapshot } from './firebase.js';
+
 // Estrutura de dados global
 let appData = {
     professores: [],
