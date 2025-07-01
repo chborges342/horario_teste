@@ -305,9 +305,9 @@ function initDisciplinas() {
             return;
         }
         
-        // Check if codigo already exists
-        if (appData.disciplinas.some(d => d.codigo === codigo)) {
-            showAlert('Código da disciplina já existe', 'error');
+        // MODIFICAÇÃO AQUI - Verifica se o código já existe NO MESMO TURNO
+        if (appData.disciplinas.some(d => d.codigo === codigo && d.turno === turno)) {
+            showAlert('Código da disciplina já existe neste turno', 'error');
             return;
         }
         
