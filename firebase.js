@@ -1,25 +1,19 @@
 // firebase.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc,
-  onSnapshot
-} from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
+// Sua configuração gerada
 const firebaseConfig = {
-  apiKey: "AIzaSyAppeJPEhGPSxqPsyeaWmA-i3mMJNS0SFI",
-  authDomain: "gestao-horarios-62d90.firebaseapp.com",
-  projectId: "gestao-horarios-62d90",
-  storageBucket: "gestao-horarios-62d90.firebasestorage.app",
-  messagingSenderId: "178826790802",
-  appId: "1:178826790802:web:c2553cbda489c610cb234b"
+  apiKey: "AIzaSyAg1DHApwNkcTJQl15oOviODtxFODoFZco",
+  authDomain: "gestaohorarioseconomia.firebaseapp.com",
+  projectId: "gestaohorarioseconomia",
+  storageBucket: "gestaohorarioseconomia.appspot.com",
+  messagingSenderId: "244016029039",
+  appId: "1:244016029039:web:2064c0bbc46c0cf8ecdc9a"
 };
 
-// Initialize Firebase
+// Inicializa o app Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
-export { db, collection, doc, setDoc, getDoc, onSnapshot };
+// Cria uma instância do Firestore
+export const db = getFirestore(app);
