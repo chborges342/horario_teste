@@ -6,43 +6,6 @@
     <title>Sistema de Gestão de Horários - Ciências Econômicas UESC</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-
-    <!-- SEU CÓDIGO DE INICIALIZAÇÃO DO FIREBASE AQUI -->
-    <script type="module">
-      // Import the functions you need from the SDKs you need
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-      // TODO: Add SDKs for Firebase products that you want to use
-      // https://firebase.google.com/docs/web/setup#available-libraries
-
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
-const db = getFirestore(app );
-
-
-      // Your web app's Firebase configuration
-      const firebaseConfig = {
-        apiKey: "AIzaSyCVXKBlYQogE_lxgiZCiAwlGfk45Y5rSk8",
-        authDomain: "horarioseconomia.firebaseapp.com",
-        projectId: "horarioseconomia",
-        storageBucket: "horarioseconomia.firebasestorage.app",
-        messagingSenderId: "521163848297",
-        appId: "1:521163848297:web:1a1460a74d276fd73300f8"
-      };
-
-      // Initialize Firebase
-      const app = initializeApp(firebaseConfig );
-
-      // IMPORTANTE: Para usar o Firestore, você precisa importar e inicializar ele também
-      import { getFirestore } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
-      const db = getFirestore(app );
-
-      // Torna a instância do Firestore globalmente acessível para seu script.js
-      // (Esta é uma forma simples para começar, mas para projetos maiores, considere módulos ES6)
-      window.db = db;
-    </script>
-
-    <!-- SEU ARQUIVO JAVASCRIPT PRINCIPAL -->
-    <script src="script.js" type="module"></script>
-    
 </head>
 <body>
     <div class="app-container">
