@@ -2,13 +2,7 @@
 // Arquivo principal JavaScript
 
 // Estrutura de dados global
-let appData = {
-    professores: [],
-    disciplinas: [],
-    turmas: [],
-    salas: [],
-    horarios: []
-};
+
 
 // Configurações dos horários
 const HORARIOS_CONFIG = {
