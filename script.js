@@ -1,14 +1,6 @@
 // Sistema de Gestão de Horários - Ciências Econômicas UESC
 // Arquivo principal JavaScript
 
-
-// Firebase imports
-import { db } from './firebase.js';
-import {
-  collection, getDocs, addDoc, deleteDoc, doc
-} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
-
-
 // Estrutura de dados global
 let appData = {
     professores: [],
@@ -205,196 +197,402 @@ function updateDashboardCounts() {
 
 // Professores
 function initProfessores() {
-  const form = document.getElementById('professor-form');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const nome = document.getElementById('professor-nome').value.trim();
-      const email = document.getElementById('professor-email').value.trim();
-      if (!nome) {
-        alert('Nome obrigatório!');
-        return;
-      }
-      await addDoc(collection(db, 'professores'), { nome, email });
-      alert('Professor adicionado.');
-      form.reset();
-      loadProfessores();
+    const form = document.getElementById('professor-form');
+    
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const nome = document.getElementById('professor-nome').value.trim();
+        const email = document.getElementById('professor-email').value.trim();
+        const disciplinasSelect = document.getElementById('professor-disciplinas');
+        const disciplinas = Array.from(disciplinasSelect.selectedOptions).map(option => option.value);
+        
+        if (!nome) {
+            showAlert('Nome do professor é obrigatório', 'error');
+            return;
+        }
+        
+        const professor = {
+            id: generateId(),
+            nome,
+            email,
+            disciplinas
+        };
+        
+        appData.professores.push(professor);
+        showAlert('Professor cadastrado com sucesso!', 'success');
+        clearForm('professor-form');
+        renderProfessoresList();
+        updateSelectOptions();
+        saveData();
     });
-  }
+    
+    // Search functionality
+    const searchInput = document.getElementById('search-professores');
+    searchInput.addEventListener('input', () => {
+        renderProfessoresList(searchInput.value);
+    });
 }
 
-async function loadProfessores() {
-  const querySnapshot = await getDocs(collection(db, "professores"));
-  appData.professores = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  renderProfessores();
+function renderProfessoresList(searchTerm = '') {
+    const container = document.getElementById('professores-list');
+    const filteredProfessores = appData.professores.filter(professor =>
+        professor.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        professor.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    if (filteredProfessores.length === 0) {
+        container.innerHTML = '<p class="no-activity">Nenhum professor encontrado</p>';
+        return;
+    }
+    
+    container.innerHTML = filteredProfessores.map(professor => {
+        const disciplinasNomes = professor.disciplinas.map(id => {
+            const disciplina = appData.disciplinas.find(d => d.id === id);
+            return disciplina ? disciplina.nome : 'Disciplina não encontrada';
+        }).join(', ');
+        
+        return `
+            <div class="item-card">
+                <div class="item-info">
+                    <h4>${professor.nome}</h4>
+                    <p>Email: ${professor.email || 'Não informado'}</p>
+                    <p>Disciplinas: ${disciplinasNomes || 'Nenhuma'}</p>
+                </div>
+                <div class="item-actions">
+                    <button class="btn btn-danger btn-small" onclick="deleteProfessor('${professor.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
-function renderProfessores() {
-  const container = document.getElementById('professores-list');
-  if (!container) return;
-  if (appData.professores.length === 0) {
-    container.innerHTML = '<p>Nenhum professor cadastrado.</p>';
-    return;
-  }
-  container.innerHTML = appData.professores.map(p => `
-    <div class="item-card">
-      <div><strong>${p.nome}</strong> (${p.email || 'Sem email'})</div>
-      <button onclick="deleteProfessor('${p.id}')">Excluir</button>
-    </div>
-  `).join('');
+function deleteProfessor(id) {
+    if (confirm('Tem certeza que deseja excluir este professor?')) {
+        appData.professores = appData.professores.filter(p => p.id !== id);
+        renderProfessoresList();
+        updateSelectOptions();
+        showAlert('Professor excluído com sucesso!', 'success');
+        saveData();
+    }
 }
 
-window.deleteProfessor = async function(id) {
-  if (confirm('Excluir professor?')) {
-    await deleteDoc(doc(db, "professores", id));
-    loadProfessores();
-  }
-};
-
-
+// Disciplinas
 function initDisciplinas() {
-  const form = document.getElementById('disciplina-form');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const nome = document.getElementById('disciplina-nome').value.trim();
-      const codigo = document.getElementById('disciplina-codigo').value.trim();
-      const turno = document.getElementById('disciplina-turno').value;
-      const semestre = parseInt(document.getElementById('disciplina-semestre').value);
-      if (!nome || !codigo) {
-        alert('Preencha todos os campos!');
-        return;
-      }
-      await addDoc(collection(db, 'disciplinas'), { nome, codigo, turno, semestre });
-      alert('Disciplina adicionada.');
-      form.reset();
-      loadDisciplinas();
+    const form = document.getElementById('disciplina-form');
+    const turnoSelect = document.getElementById('disciplina-turno');
+    const semestreSelect = document.getElementById('disciplina-semestre');
+    
+    // Update semestre options when turno changes
+    turnoSelect.addEventListener('change', () => {
+        const turno = turnoSelect.value;
+        semestreSelect.innerHTML = '<option value="">Selecione o semestre</option>';
+        
+        if (turno) {
+            const semestres = HORARIOS_CONFIG[turno].semestres;
+            semestres.forEach(sem => {
+                const option = document.createElement('option');
+                option.value = sem;
+                option.textContent = `${sem}º Semestre`;
+                semestreSelect.appendChild(option);
+            });
+        }
     });
-  }
+    
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const nome = document.getElementById('disciplina-nome').value.trim();
+        const codigo = document.getElementById('disciplina-codigo').value.trim();
+        const cargaHoraria = parseInt(document.getElementById('disciplina-carga').value);
+        const turno = document.getElementById('disciplina-turno').value;
+        const semestre = parseInt(document.getElementById('disciplina-semestre').value);
+        
+        if (!nome || !codigo || !cargaHoraria || !turno || !semestre) {
+            showAlert('Todos os campos são obrigatórios', 'error');
+            return;
+        }
+        
+        // MODIFICAÇÃO AQUI - Verifica se o código já existe NO MESMO TURNO
+        if (appData.disciplinas.some(d => d.codigo === codigo && d.turno === turno)) {
+            showAlert('Código da disciplina já existe neste turno', 'error');
+            return;
+        }
+        
+        const disciplina = {
+            id: generateId(),
+            nome,
+            codigo,
+            cargaHoraria,
+            turno,
+            semestre
+        };
+        
+        appData.disciplinas.push(disciplina);
+        showAlert('Disciplina cadastrada com sucesso!', 'success');
+        clearForm('disciplina-form');
+        renderDisciplinasList();
+        updateSelectOptions();
+        saveData();
+    });
+    
+    // Search functionality
+    const searchInput = document.getElementById('search-disciplinas');
+    searchInput.addEventListener('input', () => {
+        renderDisciplinasList(searchInput.value);
+    });
 }
 
-async function loadDisciplinas() {
-  const querySnapshot = await getDocs(collection(db, "disciplinas"));
-  appData.disciplinas = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  renderDisciplinas();
+function renderDisciplinasList(searchTerm = '') {
+    const container = document.getElementById('disciplinas-list');
+    const filteredDisciplinas = appData.disciplinas.filter(disciplina =>
+        disciplina.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        disciplina.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    if (filteredDisciplinas.length === 0) {
+        container.innerHTML = '<p class="no-activity">Nenhuma disciplina encontrada</p>';
+        return;
+    }
+    
+    container.innerHTML = filteredDisciplinas.map(disciplina => `
+        <div class="item-card">
+            <div class="item-info">
+                <h4>${disciplina.nome}</h4>
+                <p>Código: ${disciplina.codigo}</p>
+                <p>Carga Horária: ${disciplina.cargaHoraria}h/aula</p>
+                <p>Turno: ${disciplina.turno} - ${disciplina.semestre}º Semestre</p>
+            </div>
+            <div class="item-actions">
+                <button class="btn btn-danger btn-small" onclick="deleteDisciplina('${disciplina.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
 }
 
-function renderDisciplinas() {
-  const container = document.getElementById('disciplinas-list');
-  if (!container) return;
-  if (appData.disciplinas.length === 0) {
-    container.innerHTML = '<p>Nenhuma disciplina cadastrada.</p>';
-    return;
-  }
-  container.innerHTML = appData.disciplinas.map(d => `
-    <div class="item-card">
-      <div><strong>${d.nome}</strong> (${d.codigo}) - ${d.turno} - ${d.semestre}º semestre</div>
-      <button onclick="deleteDisciplina('${d.id}')">Excluir</button>
-    </div>
-  `).join('');
+function deleteDisciplina(id) {
+    if (confirm('Tem certeza que deseja excluir esta disciplina?')) {
+        appData.disciplinas = appData.disciplinas.filter(d => d.id !== id);
+        renderDisciplinasList();
+        updateSelectOptions();
+        showAlert('Disciplina excluída com sucesso!', 'success');
+        saveData();
+    }
 }
 
-window.deleteDisciplina = async function(id) {
-  if (confirm('Excluir disciplina?')) {
-    await deleteDoc(doc(db, "disciplinas", id));
-    loadDisciplinas();
-  }
-};
-
+// Turmas
 function initTurmas() {
-  const form = document.getElementById('turma-form');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const nome = document.getElementById('turma-nome').value.trim();
-      const turno = document.getElementById('turma-turno').value;
-      const semestre = parseInt(document.getElementById('turma-semestre').value);
-      if (!nome) {
-        alert('Preencha todos os campos!');
-        return;
-      }
-      await addDoc(collection(db, 'turmas'), { nome, turno, semestre });
-      alert('Turma adicionada.');
-      form.reset();
-      loadTurmas();
+    const form = document.getElementById('turma-form');
+    const turnoSelect = document.getElementById('turma-turno');
+    const semestreSelect = document.getElementById('turma-semestre');
+    const tipoSelect = document.getElementById('turma-tipo');
+    const codigoSelect = document.getElementById('turma-codigo');
+    
+    // Update semestre options when turno changes
+    turnoSelect.addEventListener('change', () => {
+        const turno = turnoSelect.value;
+        semestreSelect.innerHTML = '<option value="">Selecione o semestre</option>';
+        
+        if (turno) {
+            const semestres = HORARIOS_CONFIG[turno].semestres;
+            semestres.forEach(sem => {
+                const option = document.createElement('option');
+                option.value = sem;
+                option.textContent = `${sem}º Semestre`;
+                semestreSelect.appendChild(option);
+            });
+        }
+        
+        updateCodigoOptions();
     });
-  }
+    
+    // Update codigo options when turno or tipo changes
+    tipoSelect.addEventListener('change', updateCodigoOptions);
+    
+    function updateCodigoOptions() {
+        const turno = turnoSelect.value;
+        const tipo = tipoSelect.value;
+        codigoSelect.innerHTML = '<option value="">Selecione o código</option>';
+        
+        if (turno && tipo) {
+            const codigos = CODIGOS_TURMA[turno][tipo];
+            codigos.forEach(codigo => {
+                const option = document.createElement('option');
+                option.value = codigo;
+                option.textContent = codigo;
+                codigoSelect.appendChild(option);
+            });
+        }
+    }
+    
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const turno = document.getElementById('turma-turno').value;
+        const semestre = parseInt(document.getElementById('turma-semestre').value);
+        const tipo = document.getElementById('turma-tipo').value;
+        const codigo = document.getElementById('turma-codigo').value;
+        
+        if (!turno || !semestre || !tipo || !codigo) {
+            showAlert('Todos os campos são obrigatórios', 'error');
+            return;
+        }
+        
+        // Check if turma already exists
+        if (appData.turmas.some(t => t.turno === turno && t.semestreCurricular === semestre && t.codigo === codigo)) {
+            showAlert('Turma já existe com estes parâmetros', 'error');
+            return;
+        }
+        
+        const nome = `${semestre}º Semestre ${turno.charAt(0).toUpperCase() + turno.slice(1)} - ${codigo}`;
+        
+        const turma = {
+            id: generateId(),
+            nome,
+            turno,
+            semestreCurricular: semestre,
+            tipo,
+            codigo
+        };
+        
+        appData.turmas.push(turma);
+        showAlert('Turma cadastrada com sucesso!', 'success');
+        clearForm('turma-form');
+        renderTurmasList();
+        updateSelectOptions();
+        saveData();
+    });
+    
+    // Search functionality
+    const searchInput = document.getElementById('search-turmas');
+    searchInput.addEventListener('input', () => {
+        renderTurmasList(searchInput.value);
+    });
 }
 
-async function loadTurmas() {
-  const querySnapshot = await getDocs(collection(db, "turmas"));
-  appData.turmas = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  renderTurmas();
+function renderTurmasList(searchTerm = '') {
+    const container = document.getElementById('turmas-list');
+    const filteredTurmas = appData.turmas.filter(turma =>
+        turma.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        turma.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    if (filteredTurmas.length === 0) {
+        container.innerHTML = '<p class="no-activity">Nenhuma turma encontrada</p>';
+        return;
+    }
+    
+    container.innerHTML = filteredTurmas.map(turma => `
+        <div class="item-card">
+            <div class="item-info">
+                <h4>${turma.nome}</h4>
+                <p>Turno: ${turma.turno}</p>
+                <p>Tipo: ${turma.tipo} (${turma.codigo})</p>
+            </div>
+            <div class="item-actions">
+                <button class="btn btn-danger btn-small" onclick="deleteTurma('${turma.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
 }
 
-function renderTurmas() {
-  const container = document.getElementById('turmas-list');
-  if (!container) return;
-  if (appData.turmas.length === 0) {
-    container.innerHTML = '<p>Nenhuma turma cadastrada.</p>';
-    return;
-  }
-  container.innerHTML = appData.turmas.map(t => `
-    <div class="item-card">
-      <div><strong>${t.nome}</strong> - ${t.turno} - ${t.semestre}º semestre</div>
-      <button onclick="deleteTurma('${t.id}')">Excluir</button>
-    </div>
-  `).join('');
+function deleteTurma(id) {
+    if (confirm('Tem certeza que deseja excluir esta turma?')) {
+        appData.turmas = appData.turmas.filter(t => t.id !== id);
+        renderTurmasList();
+        updateSelectOptions();
+        showAlert('Turma excluída com sucesso!', 'success');
+        saveData();
+    }
 }
-
-window.deleteTurma = async function(id) {
-  if (confirm('Excluir turma?')) {
-    await deleteDoc(doc(db, "turmas", id));
-    loadTurmas();
-  }
-};
 
 // Salas
 function initSalas() {
-  const form = document.getElementById('sala-form');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const nome = document.getElementById('sala-nome').value.trim();
-      if (!nome) {
-        alert('Preencha o nome da sala!');
-        return;
-      }
-      await addDoc(collection(db, 'salas'), { nome });
-      alert('Sala adicionada.');
-      form.reset();
-      loadSalas();
+    const form = document.getElementById('sala-form');
+    
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const nome = document.getElementById('sala-nome').value.trim();
+        const capacidade = parseInt(document.getElementById('sala-capacidade').value) || 0;
+        const recursosCheckboxes = form.querySelectorAll('input[type="checkbox"]:checked');
+        const recursos = Array.from(recursosCheckboxes).map(cb => cb.value);
+        
+        if (!nome) {
+            showAlert('Nome da sala é obrigatório', 'error');
+            return;
+        }
+        
+        // Check if sala already exists
+        if (appData.salas.some(s => s.nome === nome)) {
+            showAlert('Sala já existe com este nome', 'error');
+            return;
+        }
+        
+        const sala = {
+            id: generateId(),
+            nome,
+            capacidade,
+            recursos
+        };
+        
+        appData.salas.push(sala);
+        showAlert('Sala cadastrada com sucesso!', 'success');
+        clearForm('sala-form');
+        renderSalasList();
+        updateSelectOptions();
+        saveData();
     });
-  }
+    
+    // Search functionality
+    const searchInput = document.getElementById('search-salas');
+    searchInput.addEventListener('input', () => {
+        renderSalasList(searchInput.value);
+    });
 }
 
-async function loadSalas() {
-  const querySnapshot = await getDocs(collection(db, "salas"));
-  appData.salas = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  renderSalas();
+function renderSalasList(searchTerm = '') {
+    const container = document.getElementById('salas-list');
+    const filteredSalas = appData.salas.filter(sala =>
+        sala.nome.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    if (filteredSalas.length === 0) {
+        container.innerHTML = '<p class="no-activity">Nenhuma sala encontrada</p>';
+        return;
+    }
+    
+    container.innerHTML = filteredSalas.map(sala => `
+        <div class="item-card">
+            <div class="item-info">
+                <h4>${sala.nome}</h4>
+                <p>Capacidade: ${sala.capacidade || 'Não informada'}</p>
+                <p>Recursos: ${sala.recursos.length > 0 ? sala.recursos.join(', ') : 'Nenhum'}</p>
+            </div>
+            <div class="item-actions">
+                <button class="btn btn-danger btn-small" onclick="deleteSala('${sala.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
 }
 
-function renderSalas() {
-  const container = document.getElementById('salas-list');
-  if (!container) return;
-  if (appData.salas.length === 0) {
-    container.innerHTML = '<p>Nenhuma sala cadastrada.</p>';
-    return;
-  }
-  container.innerHTML = appData.salas.map(s => `
-    <div class="item-card">
-      <div><strong>${s.nome}</strong></div>
-      <button onclick="deleteSala('${s.id}')">Excluir</button>
-    </div>
-  `).join('');
+function deleteSala(id) {
+    if (confirm('Tem certeza que deseja excluir esta sala?')) {
+        appData.salas = appData.salas.filter(s => s.id !== id);
+        renderSalasList();
+        updateSelectOptions();
+        showAlert('Sala excluída com sucesso!', 'success');
+        saveData();
+    }
 }
-
-window.deleteSala = async function(id) {
-  if (confirm('Excluir sala?')) {
-    await deleteDoc(doc(db, "salas", id));
-    loadSalas();
-  }
-};
 
 // Update select options across the app
 function updateSelectOptions() {
@@ -449,14 +647,38 @@ function updatePrintSelects() {
 }
 
 // Data persistence
-
-function loadData() {
-  loadProfessores();
-  loadDisciplinas();
-  loadTurmas();
-  loadSalas();
+function saveData() {
+    try {
+        localStorage.setItem('gestao-horarios-data', JSON.stringify(appData));
+    } catch (error) {
+        console.error('Erro ao salvar dados:', error);
+        showAlert('Erro ao salvar dados', 'error');
+    }
 }
 
+function loadData() {
+    try {
+        const savedData = localStorage.getItem('gestao-horarios-data');
+        if (savedData) {
+            appData = JSON.parse(savedData);
+            
+            // Render all lists
+            renderProfessoresList();
+            renderDisciplinasList();
+            renderTurmasList();
+            renderSalasList();
+            
+            // Update selects
+            updateSelectOptions();
+            
+            // Update dashboard
+            updateDashboardCounts();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        showAlert('Erro ao carregar dados salvos', 'error');
+    }
+}
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
