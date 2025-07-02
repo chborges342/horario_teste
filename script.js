@@ -1049,38 +1049,8 @@ function updatePrintSelects() {
 }
 
 // Data persistence
-function saveData() {
-    try {
-        localStorage.setItem('gestao-horarios-data', JSON.stringify(appData));
-    } catch (error) {
-        console.error('Erro ao salvar dados:', error);
-        showAlert('Erro ao salvar dados', 'error');
-    }
-}
 
-function loadData() {
-    try {
-        const savedData = localStorage.getItem('gestao-horarios-data');
-        if (savedData) {
-            appData = JSON.parse(savedData);
-            
-            // Render all lists
-            renderProfessoresList();
-            renderDisciplinasList();
-            renderTurmasList();
-            renderSalasList();
-            
-            // Update selects
-            updateSelectOptions();
-            
-            // Update dashboard
-            updateDashboardCounts();
-        }
-    } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-        showAlert('Erro ao carregar dados salvos', 'error');
-    }
-}
+
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
