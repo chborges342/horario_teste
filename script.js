@@ -1,8 +1,19 @@
 // Sistema de Gestão de Horários - Ciências Econômicas UESC
 // Arquivo principal JavaScript
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+// A instância 'db' já estaria disponível se você a exportasse do script de inicialização
+// ou se você a inicializasse diretamente aqui no script.js
+// Para simplificar, vamos continuar com window.db por enquanto.
+const db = window.db;
 
 // Estrutura de dados global
-
+let appData = {
+    professores: [],
+    disciplinas: [],
+    turmas: [],
+    salas: [],
+    horarios: []
+};
 
 // Configurações dos horários
 const HORARIOS_CONFIG = {
@@ -190,62 +201,106 @@ function updateDashboardCounts() {
 }
 
 // Professores
+// Funções CRUD para Professores
+async function addProfessorToFirestore(professor) {
+    try {
+        const docRef = await addDoc(collection(db, "professores"), professor);
+        console.log("Professor adicionado com ID: ", docRef.id);
+        showAlert('Professor cadastrado com sucesso!', 'success');
+        return { id: docRef.id, ...professor }; // Retorna o objeto completo com o ID
+    } catch (e) {
+        console.error("Erro ao adicionar professor: ", e);
+        showAlert('Erro ao cadastrar professor', 'error');
+        return null;
+    }
+}
+
+async function getProfessoresFromFirestore() {
+    const professoresList = [];
+    try {
+        const querySnapshot = await getDocs(collection(db, "professores"));
+        querySnapshot.forEach((doc) => {
+            professoresList.push({ id: doc.id, ...doc.data() });
+        });
+        return professoresList;
+    } catch (e) {
+        console.error("Erro ao obter professores: ", e);
+        showAlert('Erro ao carregar professores', 'error');
+        return [];
+    }
+}
+
+async function deleteProfessorFromFirestore(id) {
+    try {
+        await deleteDoc(doc(db, "professores", id));
+        console.log("Professor deletado com ID: ", id);
+        showAlert('Professor excluído com sucesso!', 'success');
+        return true;
+    } catch (e) {
+        console.error("Erro ao deletar professor: ", e);
+        showAlert('Erro ao excluir professor', 'error');
+        return false;
+    }
+}
+
+// Adapte initProfessores
 function initProfessores() {
     const form = document.getElementById('professor-form');
-    
-    form.addEventListener('submit', (e) => {
+
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const nome = document.getElementById('professor-nome').value.trim();
         const email = document.getElementById('professor-email').value.trim();
         const disciplinasSelect = document.getElementById('professor-disciplinas');
         const disciplinas = Array.from(disciplinasSelect.selectedOptions).map(option => option.value);
-        
+
         if (!nome) {
             showAlert('Nome do professor é obrigatório', 'error');
             return;
         }
-        
-        const professor = {
-            id: generateId(),
+
+        const professorData = { // Dados a serem salvos no Firestore
             nome,
             email,
             disciplinas
         };
-        
-        appData.professores.push(professor);
-        showAlert('Professor cadastrado com sucesso!', 'success');
-        clearForm('professor-form');
-        renderProfessoresList();
-        updateSelectOptions();
-        saveData();
+
+        const newProfessor = await addProfessorToFirestore(professorData);
+        if (newProfessor) {
+            appData.professores.push(newProfessor); // Adiciona ao cache local
+            clearForm('professor-form');
+            renderProfessoresList(); // Renderiza a lista com os dados atualizados do cache
+            updateSelectOptions(); // Atualiza os selects
+        }
     });
-    
-    // Search functionality
+
     const searchInput = document.getElementById('search-professores');
     searchInput.addEventListener('input', () => {
         renderProfessoresList(searchInput.value);
     });
 }
 
+// Adapte renderProfessoresList
 function renderProfessoresList(searchTerm = '') {
     const container = document.getElementById('professores-list');
+    // appData.professores já deve estar populado por loadAllDataFromFirestore ou por addProfessorToFirestore
     const filteredProfessores = appData.professores.filter(professor =>
         professor.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
         professor.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    
+
     if (filteredProfessores.length === 0) {
         container.innerHTML = '<p class="no-activity">Nenhum professor encontrado</p>';
         return;
     }
-    
+
     container.innerHTML = filteredProfessores.map(professor => {
         const disciplinasNomes = professor.disciplinas.map(id => {
             const disciplina = appData.disciplinas.find(d => d.id === id);
             return disciplina ? disciplina.nome : 'Disciplina não encontrada';
         }).join(', ');
-        
+
         return `
             <div class="item-card">
                 <div class="item-info">
@@ -261,29 +316,125 @@ function renderProfessoresList(searchTerm = '') {
             </div>
         `;
     }).join('');
+    updateDashboardCounts();
 }
 
-function deleteProfessor(id) {
+// Adapte deleteProfessor
+async function deleteProfessor(id) {
     if (confirm('Tem certeza que deseja excluir este professor?')) {
-        appData.professores = appData.professores.filter(p => p.id !== id);
-        renderProfessoresList();
-        updateSelectOptions();
-        showAlert('Professor excluído com sucesso!', 'success');
-        saveData();
+        const success = await deleteProfessorFromFirestore(id);
+        if (success) {
+            appData.professores = appData.professores.filter(p => p.id !== id); // Remove do cache local
+            renderProfessoresList(); // Renderiza a lista com os dados atualizados do cache
+            updateSelectOptions(); // Atualiza os selects
+        }
     }
 }
 
+// Nova função para carregar todos os dados do Firestore
+async function loadAllDataFromFirestore() {
+    try {
+        // Carregar Professores
+        appData.professores = await getProfessoresFromFirestore();
+        renderProfessoresList();
+
+        // Carregar Disciplinas
+        appData.disciplinas = await getDisciplinasFromFirestore();
+        renderDisciplinasList();
+
+        // Carregar Turmas
+        appData.turmas = await getTurmasFromFirestore();
+        renderTurmasList();
+
+        // Carregar Salas
+        appData.salas = await getSalasFromFirestore();
+        renderSalasList();
+
+        // Carregar Horarios
+        appData.horarios = await getHorariosFromFirestore();
+        // A renderização dos horários é feita ao selecionar a turma, então não precisa aqui
+
+        // Atualizar selects e dashboard após carregar tudo
+        updateSelectOptions();
+        updateDashboardCounts();
+
+        showAlert('Dados carregados do Firebase com sucesso!', 'success');
+    } catch (error) {
+        console.error('Erro ao carregar todos os dados do Firebase:', error);
+        showAlert('Erro ao carregar dados do Firebase', 'error');
+    }
+}
+
+// Modifique o DOMContentLoaded para chamar loadAllDataFromFirestore
+document.addEventListener('DOMContentLoaded', async () => {
+    initNavigation();
+    initTabs();
+    initProfessores();
+    initDisciplinas();
+    initTurmas();
+    initSalas();
+    initHorarios();
+    initImpressao();
+
+    // Carregar dados do Firebase
+    await loadAllDataFromFirestore();
+
+    console.log('Sistema de Gestão de Horários inicializado com sucesso!');
+});
+
 // Disciplinas
+// --- Funções CRUD para Disciplinas ---
+async function addDisciplinaToFirestore(disciplina) {
+    try {
+        const docRef = await addDoc(collection(db, "disciplinas"), disciplina);
+        console.log("Disciplina adicionada com ID: ", docRef.id);
+        showAlert('Disciplina cadastrada com sucesso!', 'success');
+        return { id: docRef.id, ...disciplina };
+    } catch (e) {
+        console.error("Erro ao adicionar disciplina: ", e);
+        showAlert('Erro ao cadastrar disciplina', 'error');
+        return null;
+    }
+}
+
+async function getDisciplinasFromFirestore() {
+    const disciplinasList = [];
+    try {
+        const querySnapshot = await getDocs(collection(db, "disciplinas"));
+        querySnapshot.forEach((doc) => {
+            disciplinasList.push({ id: doc.id, ...doc.data() });
+        });
+        return disciplinasList;
+    } catch (e) {
+        console.error("Erro ao obter disciplinas: ", e);
+        showAlert('Erro ao carregar disciplinas', 'error');
+        return [];
+    }
+}
+
+async function deleteDisciplinaFromFirestore(id) {
+    try {
+        await deleteDoc(doc(db, "disciplinas", id));
+        console.log("Disciplina deletada com ID: ", id);
+        showAlert('Disciplina excluída com sucesso!', 'success');
+        return true;
+    } catch (e) {
+        console.error("Erro ao deletar disciplina: ", e);
+        showAlert('Erro ao excluir disciplina', 'error');
+        return false;
+    }
+}
+
+// --- Adaptação das funções existentes para Disciplinas ---
 function initDisciplinas() {
     const form = document.getElementById('disciplina-form');
     const turnoSelect = document.getElementById('disciplina-turno');
     const semestreSelect = document.getElementById('disciplina-semestre');
-    
-    // Update semestre options when turno changes
+
     turnoSelect.addEventListener('change', () => {
         const turno = turnoSelect.value;
         semestreSelect.innerHTML = '<option value="">Selecione o semestre</option>';
-        
+
         if (turno) {
             const semestres = HORARIOS_CONFIG[turno].semestres;
             semestres.forEach(sem => {
@@ -294,45 +445,44 @@ function initDisciplinas() {
             });
         }
     });
-    
-    form.addEventListener('submit', (e) => {
+
+    form.addEventListener('submit', async (e) => { // Adicione 'async'
         e.preventDefault();
-        
+
         const nome = document.getElementById('disciplina-nome').value.trim();
         const codigo = document.getElementById('disciplina-codigo').value.trim();
         const cargaHoraria = parseInt(document.getElementById('disciplina-carga').value);
         const turno = document.getElementById('disciplina-turno').value;
         const semestre = parseInt(document.getElementById('disciplina-semestre').value);
-        
+
         if (!nome || !codigo || !cargaHoraria || !turno || !semestre) {
             showAlert('Todos os campos são obrigatórios', 'error');
             return;
         }
-        
-        // MODIFICAÇÃO AQUI - Verifica se o código já existe NO MESMO TURNO
+
+        // Verifica se o código já existe NO MESMO TURNO no cache local
         if (appData.disciplinas.some(d => d.codigo === codigo && d.turno === turno)) {
             showAlert('Código da disciplina já existe neste turno', 'error');
             return;
         }
-        
-        const disciplina = {
-            id: generateId(),
+
+        const disciplinaData = {
             nome,
             codigo,
             cargaHoraria,
             turno,
             semestre
         };
-        
-        appData.disciplinas.push(disciplina);
-        showAlert('Disciplina cadastrada com sucesso!', 'success');
-        clearForm('disciplina-form');
-        renderDisciplinasList();
-        updateSelectOptions();
-        saveData();
+
+        const newDisciplina = await addDisciplinaToFirestore(disciplinaData);
+        if (newDisciplina) {
+            appData.disciplinas.push(newDisciplina); // Adiciona ao cache local
+            clearForm('disciplina-form');
+            renderDisciplinasList(); // Renderiza a lista com os dados atualizados do cache
+            updateSelectOptions(); // Atualiza os selects
+        }
     });
-    
-    // Search functionality
+
     const searchInput = document.getElementById('search-disciplinas');
     searchInput.addEventListener('input', () => {
         renderDisciplinasList(searchInput.value);
@@ -345,12 +495,12 @@ function renderDisciplinasList(searchTerm = '') {
         disciplina.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
         disciplina.codigo.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    
+
     if (filteredDisciplinas.length === 0) {
         container.innerHTML = '<p class="no-activity">Nenhuma disciplina encontrada</p>';
         return;
     }
-    
+
     container.innerHTML = filteredDisciplinas.map(disciplina => `
         <div class="item-card">
             <div class="item-info">
@@ -366,31 +516,75 @@ function renderDisciplinasList(searchTerm = '') {
             </div>
         </div>
     `).join('');
+    updateDashboardCounts();
 }
 
-function deleteDisciplina(id) {
+async function deleteDisciplina(id) { // Adicione 'async'
     if (confirm('Tem certeza que deseja excluir esta disciplina?')) {
-        appData.disciplinas = appData.disciplinas.filter(d => d.id !== id);
-        renderDisciplinasList();
-        updateSelectOptions();
-        showAlert('Disciplina excluída com sucesso!', 'success');
-        saveData();
+        const success = await deleteDisciplinaFromFirestore(id);
+        if (success) {
+            appData.disciplinas = appData.disciplinas.filter(d => d.id !== id); // Remove do cache local
+            renderDisciplinasList(); // Renderiza a lista com os dados atualizados do cache
+            updateSelectOptions(); // Atualiza os selects
+        }
     }
 }
 
 // Turmas
+// --- Funções CRUD para Turmas ---
+async function addTurmaToFirestore(turma) {
+    try {
+        const docRef = await addDoc(collection(db, "turmas"), turma);
+        console.log("Turma adicionada com ID: ", docRef.id);
+        showAlert('Turma cadastrada com sucesso!', 'success');
+        return { id: docRef.id, ...turma };
+    } catch (e) {
+        console.error("Erro ao adicionar turma: ", e);
+        showAlert('Erro ao cadastrar turma', 'error');
+        return null;
+    }
+}
+
+async function getTurmasFromFirestore() {
+    const turmasList = [];
+    try {
+        const querySnapshot = await getDocs(collection(db, "turmas"));
+        querySnapshot.forEach((doc) => {
+            turmasList.push({ id: doc.id, ...doc.data() });
+        });
+        return turmasList;
+    } catch (e) {
+        console.error("Erro ao obter turmas: ", e);
+        showAlert('Erro ao carregar turmas', 'error');
+        return [];
+    }
+}
+
+async function deleteTurmaFromFirestore(id) {
+    try {
+        await deleteDoc(doc(db, "turmas", id));
+        console.log("Turma deletada com ID: ", id);
+        showAlert('Turma excluída com sucesso!', 'success');
+        return true;
+    } catch (e) {
+        console.error("Erro ao deletar turma: ", e);
+        showAlert('Erro ao excluir turma', 'error');
+        return false;
+    }
+}
+
+// --- Adaptação das funções existentes para Turmas ---
 function initTurmas() {
     const form = document.getElementById('turma-form');
     const turnoSelect = document.getElementById('turma-turno');
     const semestreSelect = document.getElementById('turma-semestre');
     const tipoSelect = document.getElementById('turma-tipo');
     const codigoSelect = document.getElementById('turma-codigo');
-    
-    // Update semestre options when turno changes
+
     turnoSelect.addEventListener('change', () => {
         const turno = turnoSelect.value;
         semestreSelect.innerHTML = '<option value="">Selecione o semestre</option>';
-        
+
         if (turno) {
             const semestres = HORARIOS_CONFIG[turno].semestres;
             semestres.forEach(sem => {
@@ -400,18 +594,16 @@ function initTurmas() {
                 semestreSelect.appendChild(option);
             });
         }
-        
         updateCodigoOptions();
     });
-    
-    // Update codigo options when turno or tipo changes
+
     tipoSelect.addEventListener('change', updateCodigoOptions);
-    
+
     function updateCodigoOptions() {
         const turno = turnoSelect.value;
         const tipo = tipoSelect.value;
         codigoSelect.innerHTML = '<option value="">Selecione o código</option>';
-        
+
         if (turno && tipo) {
             const codigos = CODIGOS_TURMA[turno][tipo];
             codigos.forEach(codigo => {
@@ -422,46 +614,45 @@ function initTurmas() {
             });
         }
     }
-    
-    form.addEventListener('submit', (e) => {
+
+    form.addEventListener('submit', async (e) => { // Adicione 'async'
         e.preventDefault();
-        
+
         const turno = document.getElementById('turma-turno').value;
         const semestre = parseInt(document.getElementById('turma-semestre').value);
         const tipo = document.getElementById('turma-tipo').value;
         const codigo = document.getElementById('turma-codigo').value;
-        
+
         if (!turno || !semestre || !tipo || !codigo) {
             showAlert('Todos os campos são obrigatórios', 'error');
             return;
         }
-        
-        // Check if turma already exists
+
+        // Check if turma already exists no cache local
         if (appData.turmas.some(t => t.turno === turno && t.semestreCurricular === semestre && t.codigo === codigo)) {
             showAlert('Turma já existe com estes parâmetros', 'error');
             return;
         }
-        
+
         const nome = `${semestre}º Semestre ${turno.charAt(0).toUpperCase() + turno.slice(1)} - ${codigo}`;
-        
-        const turma = {
-            id: generateId(),
+
+        const turmaData = {
             nome,
             turno,
             semestreCurricular: semestre,
             tipo,
             codigo
         };
-        
-        appData.turmas.push(turma);
-        showAlert('Turma cadastrada com sucesso!', 'success');
-        clearForm('turma-form');
-        renderTurmasList();
-        updateSelectOptions();
-        saveData();
+
+        const newTurma = await addTurmaToFirestore(turmaData);
+        if (newTurma) {
+            appData.turmas.push(newTurma); // Adiciona ao cache local
+            clearForm('turma-form');
+            renderTurmasList(); // Renderiza a lista com os dados atualizados do cache
+            updateSelectOptions(); // Atualiza os selects
+        }
     });
-    
-    // Search functionality
+
     const searchInput = document.getElementById('search-turmas');
     searchInput.addEventListener('input', () => {
         renderTurmasList(searchInput.value);
@@ -474,12 +665,12 @@ function renderTurmasList(searchTerm = '') {
         turma.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
         turma.codigo.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    
+
     if (filteredTurmas.length === 0) {
         container.innerHTML = '<p class="no-activity">Nenhuma turma encontrada</p>';
         return;
     }
-    
+
     container.innerHTML = filteredTurmas.map(turma => `
         <div class="item-card">
             <div class="item-info">
@@ -494,57 +685,102 @@ function renderTurmasList(searchTerm = '') {
             </div>
         </div>
     `).join('');
+    updateDashboardCounts();
 }
 
-function deleteTurma(id) {
+async function deleteTurma(id) { // Adicione 'async'
     if (confirm('Tem certeza que deseja excluir esta turma?')) {
-        appData.turmas = appData.turmas.filter(t => t.id !== id);
-        renderTurmasList();
-        updateSelectOptions();
-        showAlert('Turma excluída com sucesso!', 'success');
-        saveData();
+        const success = await deleteTurmaFromFirestore(id);
+        if (success) {
+            appData.turmas = appData.turmas.filter(t => t.id !== id); // Remove do cache local
+            renderTurmasList(); // Renderiza a lista com os dados atualizados do cache
+            updateSelectOptions(); // Atualiza os selects
+        }
     }
 }
 
+
 // Salas
+// --- Funções CRUD para Salas ---
+async function addSalaToFirestore(sala) {
+    try {
+        const docRef = await addDoc(collection(db, "salas"), sala);
+        console.log("Sala adicionada com ID: ", docRef.id);
+        showAlert('Sala cadastrada com sucesso!', 'success');
+        return { id: docRef.id, ...sala };
+    } catch (e) {
+        console.error("Erro ao adicionar sala: ", e);
+        showAlert('Erro ao cadastrar sala', 'error');
+        return null;
+    }
+}
+
+async function getSalasFromFirestore() {
+    const salasList = [];
+    try {
+        const querySnapshot = await getDocs(collection(db, "salas"));
+        querySnapshot.forEach((doc) => {
+            salasList.push({ id: doc.id, ...doc.data() });
+        });
+        return salasList;
+    } catch (e) {
+        console.error("Erro ao obter salas: ", e);
+        showAlert('Erro ao carregar salas', 'error');
+        return [];
+    }
+}
+
+async function deleteSalaFromFirestore(id) {
+    try {
+        await deleteDoc(doc(db, "salas", id));
+        console.log("Sala deletada com ID: ", id);
+        showAlert('Sala excluída com sucesso!', 'success');
+        return true;
+    } catch (e) {
+        console.error("Erro ao deletar sala: ", e);
+        showAlert('Erro ao excluir sala', 'error');
+        return false;
+    }
+}
+
+// --- Adaptação das funções existentes para Salas ---
 function initSalas() {
     const form = document.getElementById('sala-form');
-    
-    form.addEventListener('submit', (e) => {
+
+    form.addEventListener('submit', async (e) => { // Adicione 'async'
         e.preventDefault();
-        
+
         const nome = document.getElementById('sala-nome').value.trim();
         const capacidade = parseInt(document.getElementById('sala-capacidade').value) || 0;
         const recursosCheckboxes = form.querySelectorAll('input[type="checkbox"]:checked');
         const recursos = Array.from(recursosCheckboxes).map(cb => cb.value);
-        
+
         if (!nome) {
             showAlert('Nome da sala é obrigatório', 'error');
             return;
         }
-        
-        // Check if sala already exists
+
+        // Check if sala already exists no cache local
         if (appData.salas.some(s => s.nome === nome)) {
             showAlert('Sala já existe com este nome', 'error');
             return;
         }
-        
-        const sala = {
-            id: generateId(),
+
+        const salaData = {
             nome,
             capacidade,
             recursos
         };
-        
-        appData.salas.push(sala);
-        showAlert('Sala cadastrada com sucesso!', 'success');
-        clearForm('sala-form');
-        renderSalasList();
-        updateSelectOptions();
-        saveData();
+
+        const newSala = await addSalaToFirestore(salaData);
+        if (newSala) {
+            appData.salas.push(newSala); // Adiciona ao cache local
+            clearForm('sala-form');
+            renderSalasList(); // Renderiza a lista com os dados atualizados do cache
+            updateSelectOptions(); // Atualiza os selects
+        }
     });
-    
-    // Search functionality
+
     const searchInput = document.getElementById('search-salas');
     searchInput.addEventListener('input', () => {
         renderSalasList(searchInput.value);
@@ -556,12 +792,12 @@ function renderSalasList(searchTerm = '') {
     const filteredSalas = appData.salas.filter(sala =>
         sala.nome.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    
+
     if (filteredSalas.length === 0) {
         container.innerHTML = '<p class="no-activity">Nenhuma sala encontrada</p>';
         return;
     }
-    
+
     container.innerHTML = filteredSalas.map(sala => `
         <div class="item-card">
             <div class="item-info">
@@ -576,17 +812,189 @@ function renderSalasList(searchTerm = '') {
             </div>
         </div>
     `).join('');
+    updateDashboardCounts();
 }
 
-function deleteSala(id) {
+async function deleteSala(id) { // Adicione 'async'
     if (confirm('Tem certeza que deseja excluir esta sala?')) {
-        appData.salas = appData.salas.filter(s => s.id !== id);
-        renderSalasList();
-        updateSelectOptions();
-        showAlert('Sala excluída com sucesso!', 'success');
-        saveData();
+        const success = await deleteSalaFromFirestore(id);
+        if (success) {
+            appData.salas = appData.salas.filter(s => s.id !== id); // Remove do cache local
+            renderSalasList(); // Renderiza a lista com os dados atualizados do cache
+            updateSelectOptions(); // Atualiza os selects
+        }
     }
 }
+
+// --- Funções CRUD para Horários ---
+async function addHorarioToFirestore(horario) {
+    try {
+        const docRef = await addDoc(collection(db, "horarios"), horario);
+        console.log("Horário adicionado com ID: ", docRef.id);
+        return { id: docRef.id, ...horario };
+    } catch (e) {
+        console.error("Erro ao adicionar horário: ", e);
+        showAlert('Erro ao cadastrar horário', 'error');
+        return null;
+    }
+}
+
+async function updateHorarioInFirestore(id, horario) {
+    try {
+        await updateDoc(doc(db, "horarios", id), horario);
+        console.log("Horário atualizado com ID: ", id);
+        return true;
+    } catch (e) {
+        console.error("Erro ao atualizar horário: ", e);
+        showAlert('Erro ao atualizar horário', 'error');
+        return false;
+    }
+}
+
+async function getHorariosFromFirestore() {
+    const horariosList = [];
+    try {
+        const querySnapshot = await getDocs(collection(db, "horarios"));
+        querySnapshot.forEach((doc) => {
+            horariosList.push({ id: doc.id, ...doc.data() });
+        });
+        return horariosList;
+    } catch (e) {
+        console.error("Erro ao obter horários: ", e);
+        showAlert('Erro ao carregar horários', 'error');
+        return [];
+    }
+}
+
+async function deleteHorarioFromFirestore(id) {
+    try {
+        await deleteDoc(doc(db, "horarios", id));
+        console.log("Horário deletado com ID: ", id);
+        showAlert('Horário excluído com sucesso!', 'success');
+        return true;
+    } catch (e) {
+        console.error("Erro ao deletar horário: ", e);
+        showAlert('Erro ao excluir horário', 'error');
+        return false;
+    }
+}
+
+// --- Adaptação das funções existentes para Horários ---
+// A função initHorarios não muda muito, pois ela apenas configura listeners
+
+// Adapte saveHorario
+async function saveHorario() { // Adicione 'async'
+    if (!currentSlot) return;
+
+    const disciplinaId = document.getElementById('modal-disciplina').value;
+    const professorId = document.getElementById('modal-professor').value;
+    const salaId = document.getElementById('modal-sala').value;
+
+    if (!disciplinaId || !professorId || !salaId) {
+        showAlert('Todos os campos são obrigatórios', 'error');
+        return;
+    }
+
+    // Validações de conflito
+    const conflitos = validateHorarioConflicts(currentSlot, professorId, salaId);
+
+    if (conflitos.length > 0) {
+        showAlert(`Conflitos detectados: ${conflitos.join(', ')}`, 'error');
+        return;
+    }
+
+    // Encontra o horário existente para este slot (se houver)
+    const existingHorario = appData.horarios.find(h =>
+        h.idTurma === currentSlot.turmaId &&
+        h.diaSemana === currentSlot.dia &&
+        h.bloco === currentSlot.bloco
+    );
+
+    const horarioData = {
+        diaSemana: currentSlot.dia,
+        bloco: currentSlot.bloco,
+        idTurma: currentSlot.turmaId,
+        idDisciplina: disciplinaId,
+        idProfessor: professorId,
+        idSala: salaId
+    };
+
+    let success = false;
+    if (existingHorario) {
+        // Atualiza o horário existente no Firestore
+        success = await updateHorarioInFirestore(existingHorario.id, horarioData);
+        if (success) {
+            // Atualiza o cache local
+            Object.assign(existingHorario, horarioData);
+        }
+    } else {
+        // Adiciona um novo horário ao Firestore
+        const newHorario = await addHorarioToFirestore(horarioData);
+        if (newHorario) {
+            appData.horarios.push(newHorario); // Adiciona ao cache local
+            success = true;
+        }
+    }
+
+    if (success) {
+        renderHorariosGrid(currentSlot.turmaId);
+        closeHorarioModal();
+        showAlert('Horário salvo com sucesso!', 'success');
+    }
+}
+
+// Adapte deleteHorario
+async function deleteHorario(turmaId, dia, bloco) { // Adicione 'async'
+    if (confirm('Tem certeza que deseja excluir este horário?')) {
+        const horarioToDelete = appData.horarios.find(h =>
+            h.idTurma === turmaId && h.diaSemana === dia && h.bloco === bloco
+        );
+
+        if (horarioToDelete) {
+            const success = await deleteHorarioFromFirestore(horarioToDelete.id);
+            if (success) {
+                appData.horarios = appData.horarios.filter(h => h.id !== horarioToDelete.id); // Remove do cache local
+                renderHorariosGrid(turmaId);
+            }
+        } else {
+            showAlert('Horário não encontrado para exclusão.', 'error');
+        }
+    }
+}
+
+// A função validateHorarioConflicts precisa ser atualizada para usar o appData atualizado
+function validateHorarioConflicts(slot, professorId, salaId) {
+    const conflitos = [];
+
+    // Check professor conflict
+    const professorConflict = appData.horarios.find(h =>
+        h.idProfessor === professorId &&
+        h.diaSemana === slot.dia &&
+        h.bloco === slot.bloco &&
+        !(h.idTurma === slot.turmaId && h.diaSemana === slot.dia && h.bloco === slot.bloco)
+    );
+
+    if (professorConflict) {
+        const turmaConflito = appData.turmas.find(t => t.id === professorConflict.idTurma);
+        conflitos.push(`Professor já alocado na turma ${turmaConflito?.nome || 'N/A'}`);
+    }
+
+    // Check sala conflict
+    const salaConflict = appData.horarios.find(h =>
+        h.idSala === salaId &&
+        h.diaSemana === slot.dia &&
+        h.bloco === slot.bloco &&
+        !(h.idTurma === slot.turmaId && h.diaSemana === slot.dia && h.bloco === slot.bloco)
+    );
+
+    if (salaConflict) {
+        const turmaConflito = appData.turmas.find(t => t.id === salaConflict.idTurma);
+        conflitos.push(`Sala já ocupada pela turma ${turmaConflito?.nome || 'N/A'}`);
+    }
+
+    return conflitos;
+}
+
 
 // Update select options across the app
 function updateSelectOptions() {
