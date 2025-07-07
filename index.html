@@ -148,7 +148,7 @@
                                 <small>Mantenha Ctrl pressionado para selecionar múltiplas disciplinas</small>
                             </div>
                             <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" id="submit-professor" class="btn btn-primary">
                                     <i class="fas fa-save"></i>
                                     Salvar Professor
                                 </button>
@@ -190,22 +190,18 @@
                                 <input type="number" id="disciplina-carga" min="1" required>
                             </div>
                             <div class="form-group">
-                                <label for="disciplina-turno">Turno *</label>
-                                <select id="disciplina-turno" required>
-                                    <option value="">Selecione o turno</option>
+                                <label for="disciplina-turno">Turno(s) *</label>
+                                <select id="disciplina-turno" multiple required>
+                                    <option value="">Selecione o(s) turno(s)</option>
                                     <option value="matutino">Matutino</option>
                                     <option value="noturno">Noturno</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label for="disciplina-semestre">Semestre Curricular *</label>
-                                <select id="disciplina-semestre" required>
-                                    <option value="">Selecione o semestre</option>
-                                    <!-- Opções serão preenchidas dinamicamente baseadas no turno -->
-                                </select>
+                            <div id="disciplina-semestres-container">
+                                <!-- Semestres dinâmicos serão inseridos aqui -->
                             </div>
                             <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" id="submit-disciplina" class="btn btn-primary">
                                     <i class="fas fa-save"></i>
                                     Salvar Disciplina
                                 </button>
@@ -265,7 +261,7 @@
                                 </select>
                             </div>
                             <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" id="submit-turma" class="btn btn-primary">
                                     <i class="fas fa-save"></i>
                                     Salvar Turma
                                 </button>
@@ -320,7 +316,7 @@
                                 </div>
                             </div>
                             <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" id="submit-sala" class="btn btn-primary">
                                     <i class="fas fa-save"></i>
                                     Salvar Sala
                                 </button>
@@ -345,7 +341,7 @@
                 </div>
             </section>
 
-            <!-- Horários Section -->
+                       <!-- Horários Section -->
             <section id="horarios" class="section">
                 <div class="section-header">
                     <h2><i class="fas fa-clock"></i> Gestão de Horários</h2>
@@ -380,7 +376,7 @@
                 <div id="horario-modal" class="modal">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h3>Configurar Horário</h3>
+                            <h3 id="horario-modal-title">Configurar Horário</h3> <!-- NOVO: Título dinâmico -->
                             <button class="modal-close">&times;</button>
                         </div>
                         <form id="horario-form" class="form">
@@ -406,6 +402,11 @@
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-save"></i>
                                     Salvar
+                                </button>
+                                <!-- NOVO BOTÃO DE EXCLUIR NO MODAL -->
+                                <button type="button" id="btn-delete-horario-modal" class="btn btn-danger" style="display: none;">
+                                    <i class="fas fa-trash"></i>
+                                    Excluir Horário
                                 </button>
                                 <button type="button" class="btn btn-secondary modal-close">
                                     <i class="fas fa-times"></i>
@@ -476,9 +477,26 @@
         </div>
     </div>
 
+        <!-- Alerts Container -->
+        <div id="alerts-container" class="alerts-container">
+            <!-- Alertas serão exibidos aqui -->
+        </div>
+    </div>
+
 <script type="module" src="firebase.js"></script>
 <script src="script.js" defer></script>
 
 </body>
 </html>
 
+
+
+
+
+
+
+
+
+
+
+ 
