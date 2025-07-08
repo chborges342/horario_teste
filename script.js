@@ -1482,19 +1482,23 @@ function validateHorarioConflicts(slot, professorId, salaId) {
     const conflitos = [];
     const horariosArray = toArray(appData.horarios);
 
-    // Primeiro precisamos determinar o turno do slot atual
-    const turnoAtual = getTurnoByHorario(slot.bloco, slot.dia);
+    // Determina o turno do slot atual
+    const turnoAtual = getTurnoByBloco(slot.bloco, slot.dia);
+    
+    // Obtém o horário real do bloco atual
+    const horarioAtual = getHorarioReal(slot.bloco, slot.dia, turnoAtual);
 
     // Check professor conflict
     const professorConflict = horariosArray.find(h => {
-        // Determinar o turno do horário existente
-        const turnoExistente = getTurnoByHorario(h.bloco, h.diaSemana);
+        const turnoExistente = getTurnoByBloco(h.bloco, h.diaSemana);
+        const horarioExistente = getHorarioReal(h.bloco, h.diaSemana, turnoExistente);
         
+        // Verifica se é o mesmo professor e se os horários se sobrepõem
         return h.idProfessor === professorId &&
-            h.diaSemana === slot.dia &&
-            h.bloco === slot.bloco &&
-            turnoAtual === turnoExistente && // Só conflita se for no mesmo turno
-            !(h.idTurma === slot.turmaId && h.diaSemana === slot.dia && h.bloco === slot.bloco)
+               h.diaSemana === slot.dia &&
+               turnoAtual === turnoExistente && // Mesmo turno
+               horariosSobrepoem(horarioAtual, horarioExistente) &&
+               !(h.idTurma === slot.turmaId && h.diaSemana === slot.dia && h.bloco === slot.bloco);
     });
 
     if (professorConflict) {
@@ -1504,14 +1508,14 @@ function validateHorarioConflicts(slot, professorId, salaId) {
 
     // Check sala conflict
     const salaConflict = horariosArray.find(h => {
-        // Determinar o turno do horário existente
-        const turnoExistente = getTurnoByHorario(h.bloco, h.diaSemana);
+        const turnoExistente = getTurnoByBloco(h.bloco, h.diaSemana);
+        const horarioExistente = getHorarioReal(h.bloco, h.diaSemana, turnoExistente);
         
         return h.idSala === salaId &&
-            h.diaSemana === slot.dia &&
-            h.bloco === slot.bloco &&
-            turnoAtual === turnoExistente && // Só conflita se for no mesmo turno
-            !(h.idTurma === slot.turmaId && h.diaSemana === slot.dia && h.bloco === slot.bloco)
+               h.diaSemana === slot.dia &&
+               turnoAtual === turnoExistente && // Mesmo turno
+               horariosSobrepoem(horarioAtual, horarioExistente) &&
+               !(h.idTurma === slot.turmaId && h.diaSemana === slot.dia && h.bloco === slot.bloco);
     });
 
     if (salaConflict) {
@@ -1523,20 +1527,33 @@ function validateHorarioConflicts(slot, professorId, salaId) {
 }
 
 // Função auxiliar para determinar o turno pelo bloco e dia
-function getTurnoByHorario(bloco, dia) {
+function getTurnoByBloco(bloco, dia) {
     // Verifica se é sábado (caso especial no noturno)
     if (dia === 'sabado') {
         return 'noturno';
     }
     
-    // Verifica se o bloco existe na configuração matutina
-    const blocoMatutino = HORARIOS_CONFIG.matutino.blocos.find(b => b.id === bloco);
-    if (blocoMatutino) {
+    // Verifica se o bloco existe na configuração matutina (1-6)
+    if (bloco >= 1 && bloco <= 6) {
         return 'matutino';
     }
     
     // Se não for matutino, assume noturno
     return 'noturno';
+}
+
+// Obtém o horário real (início e fim) de um bloco
+function getHorarioReal(bloco, dia, turno) {
+    if (turno === 'matutino') {
+        return HORARIOS_CONFIG.matutino.blocos.find(b => b.id === bloco);
+    } else {
+        return HORARIOS_CONFIG.noturno.blocos[dia].find(b => b.id === bloco);
+    }
+}
+
+// Verifica se dois horários se sobrepõem
+function horariosSobrepoem(horario1, horario2) {
+    return horario1.inicio < horario2.fim && horario1.fim > horario2.inicio;
 }
 // Delete horario (right-click or delete button)
 async function deleteHorario(turmaId, dia, bloco) {
