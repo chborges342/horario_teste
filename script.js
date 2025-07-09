@@ -1482,38 +1482,38 @@ function validateHorarioConflicts(slot, professorId, salaId) {
     const conflitos = [];
     const horariosArray = toArray(appData.horarios);
 
-    // 1. Determinação INFALÍVEL do turno atual
-    const turnoAtual = determinarTurnoInfalivel(slot);
-    
-    // 2. Filtra apenas horários do MESMO turno para comparação
-    const horariosMesmoTurno = horariosArray.filter(h => {
-        return determinarTurnoInfalivel(h) === turnoAtual;
-    });
+    // Obtém a turma atual para determinar o turno
+    const turmaAtual = appData.turmas[slot.turmaId];
+    if (!turmaAtual) return conflitos;
 
-    // 3. Verificação de conflito de professor
-    const professorConflict = horariosMesmoTurno.find(h =>
-        h.idProfessor === professorId &&
-        h.diaSemana === slot.dia &&
-        h.bloco === slot.bloco &&
-        !(h.idTurma === slot.turmaId) // Exclui a própria turma em caso de edição
-    );
+    // Verifica conflitos de professor
+    const professorConflict = horariosArray.find(h => {
+        const turmaExistente = appData.turmas[h.idTurma];
+        return h.idProfessor === professorId &&
+               h.diaSemana === slot.dia &&
+               h.bloco === slot.bloco &&
+               turmaExistente?.turno === turmaAtual.turno && // Só conflita se for no mesmo turno
+               !(h.idTurma === slot.turmaId && h.diaSemana === slot.dia && h.bloco === slot.bloco);
+    });
 
     if (professorConflict) {
         const turmaConflito = appData.turmas[professorConflict.idTurma];
-        conflitos.push(`Professor já alocado na turma ${turmaConflito?.nome || 'N/A'}`);
+        conflitos.push(`Professor já alocado na turma ${turmaConflito?.nome || 'N/A'} no mesmo turno`);
     }
 
-    // 4. Verificação de conflito de sala
-    const salaConflict = horariosMesmoTurno.find(h =>
-        h.idSala === salaId &&
-        h.diaSemana === slot.dia &&
-        h.bloco === slot.bloco &&
-        !(h.idTurma === slot.turmaId) // Exclui a própria turma em caso de edição
-    );
+    // Verifica conflitos de sala
+    const salaConflict = horariosArray.find(h => {
+        const turmaExistente = appData.turmas[h.idTurma];
+        return h.idSala === salaId &&
+               h.diaSemana === slot.dia &&
+               h.bloco === slot.bloco &&
+               turmaExistente?.turno === turmaAtual.turno && // Só conflita se for no mesmo turno
+               !(h.idTurma === slot.turmaId && h.diaSemana === slot.dia && h.bloco === slot.bloco);
+    });
 
     if (salaConflict) {
         const turmaConflito = appData.turmas[salaConflict.idTurma];
-        conflitos.push(`Sala já ocupada pela turma ${turmaConflito?.nome || 'N/A'}`);
+        conflitos.push(`Sala já ocupada pela turma ${turmaConflito?.nome || 'N/A'} no mesmo turno`);
     }
 
     return conflitos;
