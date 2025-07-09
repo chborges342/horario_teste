@@ -1599,6 +1599,14 @@ function generateTurmaPrint(turmaId) {
     const turma = appData.turmas[turmaId];
     if (!turma) return;
     
+    // Função para obter a cor da disciplina (igual à usada na grade)
+    const getCorPorDisciplina = (idDisciplina) => {
+        if (!idDisciplina) return '#ffffff';
+        const hash = idDisciplina.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
+        const hue = hash % 360;
+        return `hsl(${hue}, 70%, 85%)`;
+    };
+
     const preview = document.getElementById('print-preview');
     preview.classList.remove('hidden');
     
@@ -1618,7 +1626,6 @@ function generateTurmaPrint(turmaId) {
                     <th>Horário</th>
     `;
     
-    // A lógica de dias é a mesma para matutino e noturno no header da tabela
     config.dias.forEach(dia => {
         html += `<th>${formatDiaName(dia)}</th>`;
     });
@@ -1631,7 +1638,8 @@ function generateTurmaPrint(turmaId) {
             
             config.dias.forEach(dia => {
                 const horario = horariosData.find(h => h.diaSemana === dia && h.bloco === bloco.id);
-                html += '<td class="horario-cell">';
+                const corFundo = horario ? getCorPorDisciplina(horario.idDisciplina) : '#ffffff';
+                html += `<td class="horario-cell" style="background-color: ${corFundo};">`;
                 
                 if (horario) {
                     const disciplina = appData.disciplinas[horario.idDisciplina];
@@ -1653,7 +1661,7 @@ function generateTurmaPrint(turmaId) {
             html += '</tr>';
         });
     } else {
-        // Noturno
+        // Noturno - mesma lógica com cores
         const maxBlocos = Math.max(...config.dias.map(dia => config.blocos[dia].length));
         
         for (let i = 0; i < maxBlocos; i++) {
@@ -1669,24 +1677,22 @@ function generateTurmaPrint(turmaId) {
             
             config.dias.forEach(dia => {
                 const bloco = config.blocos[dia][i];
-                html += '<td class="horario-cell">';
+                const horario = bloco ? horariosData.find(h => h.diaSemana === dia && h.bloco === bloco.id) : null;
+                const corFundo = horario ? getCorPorDisciplina(horario.idDisciplina) : '#ffffff';
+                html += `<td class="horario-cell" style="background-color: ${corFundo};">`;
                 
-                if (bloco) {
-                    const horario = horariosData.find(h => h.diaSemana === dia && h.bloco === bloco.id);
+                if (bloco && horario) {
+                    const disciplina = appData.disciplinas[horario.idDisciplina];
+                    const professor = appData.professores[horario.idProfessor];
+                    const sala = appData.salas[horario.idSala];
                     
-                    if (horario) {
-                        const disciplina = appData.disciplinas[horario.idDisciplina];
-                        const professor = appData.professores[horario.idProfessor];
-                        const sala = appData.salas[horario.idSala];
-                        
-                        html += `
-                            <div class="print-horario-info">
-                                <div class="disciplina">${disciplina?.nome || 'N/A'}</div>
-                                <div class="professor">${professor?.nome || 'N/A'}</div>
-                                <div class="sala">Sala: ${sala?.nome || 'N/A'}</div>
-                            </div>
-                        `;
-                    }
+                    html += `
+                        <div class="print-horario-info">
+                            <div class="disciplina">${disciplina?.nome || 'N/A'}</div>
+                            <div class="professor">${professor?.nome || 'N/A'}</div>
+                            <div class="sala">Sala: ${sala?.nome || 'N/A'}</div>
+                        </div>
+                    `;
                 }
                 
                 html += '</td>';
@@ -1697,6 +1703,9 @@ function generateTurmaPrint(turmaId) {
     }
     
     html += '</tbody></table>';
+    
+    // ... (restante do código permanece igual)
+}
     
     html += `
         <div class="print-footer">
