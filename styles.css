@@ -961,18 +961,4 @@ body {
     }
 }
 
-@media print {
-    .horario-cell {
-        -webkit-print-color-adjust: exact !important;
-        color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-    
-    .print-table {
-        page-break-inside: avoid;
-    }
-    
-    .print-header, .print-footer {
-        display: block !important;
-    }
-}
+
