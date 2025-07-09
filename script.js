@@ -1168,40 +1168,38 @@ function renderHorariosGrid(turmaId) {
     const container = document.getElementById('horarios-grid');
     const config = HORARIOS_CONFIG[turma.turno];
 
+    // Função para gerar cor única baseada no ID da disciplina
+    const getCorPorDisciplina = (idDisciplina) => {
+        if (!idDisciplina) return '#f0f0f0'; // Cor padrão se não houver disciplina
+        const hash = idDisciplina.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
+        const hue = hash % 360; // Gera um tom de cor entre 0-359
+        return `hsl(${hue}, 70%, 85%)`; // Cores pastel para melhor legibilidade
+    };
+
     let html = '<table class="grade-horarios">';
-
-    // Header
     html += '<thead><tr><th>Horário</th>';
-
-    // A lógica de dias é a mesma para matutino e noturno no header da tabela
-    config.dias.forEach(dia => {
-        html += `<th>${formatDiaName(dia)}</th>`;
-    });
-
+    config.dias.forEach(dia => html += `<th>${formatDiaName(dia)}</th>`);
     html += '</tr></thead><tbody>';
 
-    // Body
     if (turma.turno === 'matutino') {
         config.blocos.forEach(bloco => {
             html += `<tr><td class="horario-label">${bloco.inicio} - ${bloco.fim}</td>`;
-
             config.dias.forEach(dia => {
-                const horario = toArray(appData.horarios).find(h =>
-                    h.idTurma === turmaId &&
-                    h.diaSemana === dia &&
-                    h.bloco === bloco.id
+                const horario = toArray(appData.horarios).find(h => 
+                    h.idTurma === turmaId && h.diaSemana === dia && h.bloco === bloco.id
                 );
-                html += `<td class="horario-slot ${horario ? 'ocupado' : ''}"
-                            data-turma-id="${turmaId}"
-                            data-dia="${dia}"
-                            data-bloco="${bloco.id}"
-                            onclick="editHorarioSlot('${turmaId}', '${dia}', ${bloco.id})">`; // Adicionado turmaId para clique
+                const corFundo = horario ? getCorPorDisciplina(horario.idDisciplina) : '#ffffff';
+                html += `<td class="horario-slot ${horario ? 'ocupado' : ''}" 
+                            style="background-color: ${corFundo};"
+                            data-turma-id="${turmaId}" 
+                            data-dia="${dia}" 
+                            data-bloco="${bloco.id}" 
+                            onclick="editHorarioSlot('${turmaId}', '${dia}', ${bloco.id})">`;
 
                 if (horario) {
                     const disciplina = appData.disciplinas[horario.idDisciplina];
                     const professor = appData.professores[horario.idProfessor];
                     const sala = appData.salas[horario.idSala];
-
                     html += `<div class="horario-info">
                                 <div class="disciplina">${disciplina?.nome || 'N/A'}</div>
                                 <div class="professor">${professor?.nome || 'N/A'}</div>
@@ -1210,66 +1208,54 @@ function renderHorariosGrid(turmaId) {
                 } else {
                     html += '<div class="horario-vazio">+</div>';
                 }
-
                 html += '</td>';
             });
-
             html += '</tr>';
         });
     } else {
-        // Noturno - lógica mais complexa
+        // Lógica para turno noturno (similar, mas com blocos por dia)
         const maxBlocos = Math.max(...config.dias.map(dia => config.blocos[dia].length));
-
         for (let i = 0; i < maxBlocos; i++) {
             html += '<tr>';
-
-            // Primeira coluna com horários variados
             const horariosLabels = config.dias.map(dia => {
                 const bloco = config.blocos[dia][i];
                 return bloco ? `${bloco.inicio} - ${bloco.fim}` : '';
             }).filter(h => h);
-
             const horarioUnico = [...new Set(horariosLabels)];
             html += `<td class="horario-label">${horarioUnico.join(' / ')}</td>`;
 
             config.dias.forEach(dia => {
                 const bloco = config.blocos[dia][i];
                 if (bloco) {
-                    const horario = toArray(appData.horarios).find(h =>
-                        h.idTurma === turmaId &&
-                        h.diaSemana === dia &&
-                        h.bloco === bloco.id
+                    const horario = toArray(appData.horarios).find(h => 
+                        h.idTurma === turmaId && h.diaSemana === dia && h.bloco === bloco.id
                     );
-                    html += `<td class="horario-slot ${horario ? 'ocupado' : ''}"
-                                data-turma-id="${turmaId}"
-                                data-dia="${dia}"
-                                data-bloco="${bloco.id}"
-                                onclick="editHorarioSlot('${turmaId}', '${dia}', ${bloco.id})">`; // Adicionado turmaId para clique
+                    const corFundo = horario ? getCorPorDisciplina(horario.idDisciplina) : '#ffffff';
+                    html += `<td class="horario-slot ${horario ? 'ocupado' : ''}" 
+                                style="background-color: ${corFundo};"
+                                data-turma-id="${turmaId}" 
+                                data-dia="${dia}" 
+                                data-bloco="${bloco.id}" 
+                                onclick="editHorarioSlot('${turmaId}', '${dia}', ${bloco.id})">`;
 
                     if (horario) {
                         const disciplina = appData.disciplinas[horario.idDisciplina];
                         const professor = appData.professores[horario.idProfessor];
-                        const sala = appData.salas[horario.idSala];
-
                         html += `<div class="horario-info">
                                     <div class="disciplina">${disciplina?.nome || 'N/A'}</div>
                                     <div class="professor">${professor?.nome || 'N/A'}</div>
-                                    <div class="sala">${sala?.nome || 'N/A'}</div>
                                  </div>`;
                     } else {
                         html += '<div class="horario-vazio">+</div>';
                     }
-
                     html += '</td>';
                 } else {
                     html += '<td class="horario-slot disabled"></td>';
                 }
             });
-
             html += '</tr>';
         }
     }
-
     html += '</tbody></table>';
     container.innerHTML = html;
 }
