@@ -1482,79 +1482,60 @@ function validateHorarioConflicts(slot, professorId, salaId) {
     const conflitos = [];
     const horariosArray = toArray(appData.horarios);
 
-    // Determina o turno do slot atual
-    const turnoAtual = getTurnoByBloco(slot.bloco, slot.dia);
+    // 1. Determinação INFALÍVEL do turno atual
+    const turnoAtual = determinarTurnoInfalivel(slot);
     
-    // Obtém o horário real do bloco atual
-    const horarioAtual = getHorarioReal(slot.bloco, slot.dia, turnoAtual);
-
-    // Check professor conflict
-    const professorConflict = horariosArray.find(h => {
-        const turnoExistente = getTurnoByBloco(h.bloco, h.diaSemana);
-        const horarioExistente = getHorarioReal(h.bloco, h.diaSemana, turnoExistente);
-        
-        // Verifica se é o mesmo professor e se os horários se sobrepõem
-        return h.idProfessor === professorId &&
-               h.diaSemana === slot.dia &&
-               turnoAtual === turnoExistente && // Mesmo turno
-               horariosSobrepoem(horarioAtual, horarioExistente) &&
-               !(h.idTurma === slot.turmaId && h.diaSemana === slot.dia && h.bloco === slot.bloco);
+    // 2. Filtra apenas horários do MESMO turno para comparação
+    const horariosMesmoTurno = horariosArray.filter(h => {
+        return determinarTurnoInfalivel(h) === turnoAtual;
     });
+
+    // 3. Verificação de conflito de professor
+    const professorConflict = horariosMesmoTurno.find(h =>
+        h.idProfessor === professorId &&
+        h.diaSemana === slot.dia &&
+        h.bloco === slot.bloco &&
+        !(h.idTurma === slot.turmaId) // Exclui a própria turma em caso de edição
+    );
 
     if (professorConflict) {
         const turmaConflito = appData.turmas[professorConflict.idTurma];
-        conflitos.push(`Professor já alocado na turma ${turmaConflito?.nome || 'N/A'} no mesmo turno`);
+        conflitos.push(`Professor já alocado na turma ${turmaConflito?.nome || 'N/A'}`);
     }
 
-    // Check sala conflict
-    const salaConflict = horariosArray.find(h => {
-        const turnoExistente = getTurnoByBloco(h.bloco, h.diaSemana);
-        const horarioExistente = getHorarioReal(h.bloco, h.diaSemana, turnoExistente);
-        
-        return h.idSala === salaId &&
-               h.diaSemana === slot.dia &&
-               turnoAtual === turnoExistente && // Mesmo turno
-               horariosSobrepoem(horarioAtual, horarioExistente) &&
-               !(h.idTurma === slot.turmaId && h.diaSemana === slot.dia && h.bloco === slot.bloco);
-    });
+    // 4. Verificação de conflito de sala
+    const salaConflict = horariosMesmoTurno.find(h =>
+        h.idSala === salaId &&
+        h.diaSemana === slot.dia &&
+        h.bloco === slot.bloco &&
+        !(h.idTurma === slot.turmaId) // Exclui a própria turma em caso de edição
+    );
 
     if (salaConflict) {
         const turmaConflito = appData.turmas[salaConflict.idTurma];
-        conflitos.push(`Sala já ocupada pela turma ${turmaConflito?.nome || 'N/A'} no mesmo turno`);
+        conflitos.push(`Sala já ocupada pela turma ${turmaConflito?.nome || 'N/A'}`);
     }
 
     return conflitos;
 }
 
-// Função auxiliar para determinar o turno pelo bloco e dia
-function getTurnoByBloco(bloco, dia) {
-    // Verifica se é sábado (caso especial no noturno)
-    if (dia === 'sabado') {
+// Função INFALÍVEL para determinar turnos
+function determinarTurnoInfalivel(item) {
+    // Se for sábado, sempre noturno (de acordo com sua configuração)
+    if (item.diaSemana === 'sabado' || item.dia === 'sabado') {
         return 'noturno';
     }
     
-    // Verifica se o bloco existe na configuração matutina (1-6)
-    if (bloco >= 1 && bloco <= 6) {
+    // Se o bloco for numérico (matutino: 1-6)
+    if (typeof item.bloco === 'number' && item.bloco >= 1 && item.bloco <= 6) {
         return 'matutino';
     }
     
-    // Se não for matutino, assume noturno
+    // Todos os outros casos são noturnos
     return 'noturno';
 }
 
-// Obtém o horário real (início e fim) de um bloco
-function getHorarioReal(bloco, dia, turno) {
-    if (turno === 'matutino') {
-        return HORARIOS_CONFIG.matutino.blocos.find(b => b.id === bloco);
-    } else {
-        return HORARIOS_CONFIG.noturno.blocos[dia].find(b => b.id === bloco);
-    }
-}
 
-// Verifica se dois horários se sobrepõem
-function horariosSobrepoem(horario1, horario2) {
-    return horario1.inicio < horario2.fim && horario1.fim > horario2.inicio;
-}
 // Delete horario (right-click or delete button)
 async function deleteHorario(turmaId, dia, bloco) {
     // A confirmação é feita no caller (initHorarios ou contextmenu)
