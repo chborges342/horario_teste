@@ -1238,16 +1238,19 @@ function renderHorariosGrid(turmaId) {
                                 data-bloco="${bloco.id}" 
                                 onclick="editHorarioSlot('${turmaId}', '${dia}', ${bloco.id})">`;
 
-                    if (horario) {
-                        const disciplina = appData.disciplinas[horario.idDisciplina];
-                        const professor = appData.professores[horario.idProfessor];
-                        html += `<div class="horario-info">
-                                    <div class="disciplina">${disciplina?.nome || 'N/A'}</div>
-                                    <div class="professor">${professor?.nome || 'N/A'}</div>
-                                 </div>`;
-                    } else {
-                        html += '<div class="horario-vazio">+</div>';
-                    }
+                    // Dentro do else (turno noturno) da função renderHorariosGrid():
+if (horario) {
+    const disciplina = appData.disciplinas[horario.idDisciplina];
+    const professor = appData.professores[horario.idProfessor];
+    const sala = appData.salas[horario.idSala];  // Adicionado esta linha
+    html += `<div class="horario-info">
+                <div class="disciplina">${disciplina?.nome || 'N/A'}</div>
+                <div class="professor">${professor?.nome || 'N/A'}</div>
+                <div class="sala">${sala?.nome || 'N/A'}</div>  <!-- Adicionado esta linha -->
+             </div>`;
+} else {
+    html += '<div class="horario-vazio">+</div>';
+}
                     html += '</td>';
                 } else {
                     html += '<td class="horario-slot disabled"></td>';
